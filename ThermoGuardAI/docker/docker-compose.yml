@@ -1,0 +1,63 @@
+# ============================================================
+# ThermoGuard AI — production deployment (Firebase architecture)
+#   docker compose -f docker/docker-compose.yml up --build
+#
+# Production persistence is Cloud Firestore + Firebase Storage + Firebase
+# Authentication (project `thermoguardai`). No PostgreSQL, no SQLite: the
+# backend refuses to start in production unless AUTH_BACKEND=firebase and
+# STORAGE_BACKEND=firestore are set (see backend/core/config.py).
+# ============================================================
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      APP_ENV: production
+      AUTH_BACKEND: firebase
+      STORAGE_BACKEND: firestore
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-thermoguardai}
+      FIREBASE_STORAGE_BUCKET: ${FIREBASE_STORAGE_BUCKET:-thermoguardai.firebasestorage.app}
+      # Path inside the container — the secret file is injected below.
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-service-account.json
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set to a strong value}
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS must list the dashboard origin(s)}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?ALLOWED_HOSTS must list the production hostname(s)}
+      DEBUG: "false"
+      # Seed admin bootstrap (first production run)
+      SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-admin}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:?SEED_ADMIN_EMAIL must be set}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?SEED_ADMIN_PASSWORD must be set}
+      SEED_ORGANIZATION: ${SEED_ORGANIZATION:-ThermoGuard}
+      DETECTOR_MODE: fallback
+      THERMAL_MODE: simulator
+    secrets:
+      - firebase_service_account
+    volumes:
+      - tg-media:/app/media
+      - tg-models:/app/models
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dashboard
+    environment:
+      TG_API_BASE: http://backend:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+secrets:
+  # The Firebase Admin SDK service-account private key (backend-only). Provide
+  # its path on the host with FIREBASE_SERVICE_ACCOUNT_FILE. NEVER commit it.
+  firebase_service_account:
+    file: ${FIREBASE_SERVICE_ACCOUNT_FILE:?FIREBASE_SERVICE_ACCOUNT_FILE must point at the service-account JSON}
+
+volumes:
+  tg-media:
+  tg-models:

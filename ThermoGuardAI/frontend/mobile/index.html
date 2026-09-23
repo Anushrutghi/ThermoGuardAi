@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ThermoGuard AI — Mobile Camera</title>
+<style>
+  :root { --accent:#0E4DA4; --danger:#D64545; --ok:#2E8B57; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background:#0d1117; color:#e6edf3; min-height:100vh; }
+  header { display:flex; align-items:center; gap:10px; padding:12px 16px; background:#161b22; border-bottom:1px solid #30363d; position:sticky; top:0; z-index:10; }
+  header h1 { font-size:1.05rem; color:var(--accent); }
+  #status { margin-left:auto; font-size:.75rem; padding:4px 10px; border-radius:20px; background:#21262d; }
+  #status.on { background:#0e4429; color:#7ee787; }
+  #status.off { background:#3d1d1d; color:#ff7b72; }
+  main { padding:12px; display:flex; flex-direction:column; gap:12px; max-width:900px; margin:0 auto; }
+  .video-wrap { position:relative; border-radius:12px; overflow:hidden; background:#000; }
+  #video, #canvas { width:100%; display:block; }
+  #canvas { position:absolute; inset:0; opacity:.92; }
+  .thermal-badge { display:none; padding:9px 12px; border-radius:8px; font-size:.78rem; font-weight:700; text-align:center; }
+  .thermal-badge.show { display:block; }
+  .thermal-badge.demo { background:#2b2113; color:#ffd98a; border:1px solid #E8A33D; }
+  .thermal-badge.live { background:#0e4429; color:#7ee787; border:1px solid #2E8B57; }
+  .stats { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+  .stat { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:10px; text-align:center; }
+  .stat .v { font-size:1.3rem; font-weight:700; }
+  .stat .l { font-size:.68rem; color:#8b949e; text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+  button { border:0; border-radius:12px; padding:14px; font-size:1rem; font-weight:600; cursor:pointer; }
+  #startBtn { background:var(--accent); color:#fff; }
+  #startBtn:disabled { background:#21262d; color:#8b949e; }
+  #stopBtn { background:#21262d; color:#f85149; border:1px solid #f85149; }
+  #alarmBox { background:#3d1d1d; border:1px solid #f85149; border-radius:10px; padding:12px; display:none; animation: pulse 1s infinite; }
+  #alarmBox.show { display:block; }
+  #alarmBox h3 { color:#ff7b72; font-size:.95rem; margin-bottom:4px; }
+  #alarmBox p { font-size:.85rem; }
+  #heatBox { background:#141d12; border:1px solid #7ee787; border-radius:10px; padding:12px; display:none; }
+  #heatBox.show { display:block; }
+  #heatText { font-size:.82rem; color:#7ee787; margin-bottom:6px; }
+  #heatBarWrap { height:8px; border-radius:6px; background:#21262d; overflow:hidden; }
+  #heatBar { height:100%; width:0%; background:#7ee787; transition:width .3s; }
+  .login { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .login input { background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#e6edf3; padding:12px; font-size:1rem; }
+  .login button { background:var(--accent); color:#fff; padding:12px; }
+  #loginMsg { font-size:.78rem; color:#8b949e; text-align:center; }
+  @keyframes pulse { 50% { opacity:.65; } }
+  .log { font-family:ui-monospace, monospace; font-size:.72rem; background:#161b22; border:1px solid #30363d; border-radius:10px; padding:10px; max-height:180px; overflow-y:auto; }
+  .hint { font-size:.78rem; color:#8b949e; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ ThermoGuard AI</h1>
+  <div id="status" class="off">Disconnected</div>
+</header>
+<main>
+  <div class="login" id="loginBox">
+    <input type="text" id="loginUser" placeholder="Username" autocomplete="username" value="admin" />
+    <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" />
+    <button id="loginBtn">🔐 Sign in</button>
+    <div id="loginMsg"></div>
+  </div>
+  <div class="video-wrap">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+  </div>
+  <div id="thermalBadge" class="thermal-badge"></div>
+  <div class="stats">
+    <div class="stat"><div class="v" id="sFps">0</div><div class="l">FPS</div></div>
+    <div class="stat"><div class="v" id="sRisk">0</div><div class="l">Risk</div></div>
+    <div class="stat"><div class="v" id="sComps">0</div><div class="l">Components</div></div>
+    <div class="stat"><div class="v" id="sTemp">—</div><div class="l">Max °C</div></div>
+  </div>
+  <div id="heatBox"><div id="heatText"></div><div id="heatBarWrap"><div id="heatBar"></div></div></div>
+  <div id="alarmBox"><h3>🚨 ALARM</h3><p id="alarmMsg"></p></div>
+  <button id="permBtn">📷 Allow camera access</button>
+  <button id="startBtn" disabled>📱 Start live inspection</button>
+  <button id="stopBtn" style="display:none">Stop inspection</button>
+  <div class="hint">This page uses your phone camera via the Browser Camera API (WebRTC). Tap "Allow camera access" first — the browser will ask for permission.</div>
+  <div class="log" id="log"></div>
+</main>
+
+<script>
+const WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/api/v1/ws/inspect';
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const permBtn = document.getElementById('permBtn');
+const statusEl = document.getElementById('status');
+const logEl = document.getElementById('log');
+const alarmBox = document.getElementById('alarmBox');
+
+let ws = null;
+let stream = null;
+let running = false;
+let token = null;
+let lastSend = 0;
+let inFlight = false;         // no new frame until the last result arrives
+let sendInterval = 33;        // ms between sends — starts at ~30fps, adapts to device
+const MIN_INTERVAL = 16;      // ~60fps ceiling
+const MAX_INTERVAL = 250;     // floor when the device/network is very slow
+let rttEMA = 33;              // exponential moving average of round-trip time
+let streamScale = 1.0;        // capture resolution multiplier (adaptive)
+
+function updatePerfUI(perf) {
+  if (!perf) return;
+  document.getElementById('sFps').textContent = (perf.achieved_fps || 0).toFixed(0);
+}
+
+function adaptInterval(rtt) {
+  // Slow round trips → send less often; fast → race toward 60fps
+  rttEMA = rttEMA === 0 ? rtt : 0.8 * rttEMA + 0.2 * rtt;
+  if (rttEMA > sendInterval * 1.6) sendInterval = Math.min(MAX_INTERVAL, sendInterval * 1.25);
+  else if (rttEMA < sendInterval * 0.55) sendInterval = Math.max(MIN_INTERVAL, sendInterval * 0.8);
+  // Resolution fallback for very slow devices
+  if (rttEMA > 150 && streamScale > 0.5) streamScale = Math.max(0.5, streamScale * 0.75);
+  else if (rttEMA < 45 && streamScale < 1.0) streamScale = Math.min(1.0, streamScale * 1.25);
+}
+
+function log(msg) {
+  const line = document.createElement('div');
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  logEl.prepend(line);
+  while (logEl.children.length > 40) logEl.lastChild.remove();
+}
+
+function setStatus(on) {
+  statusEl.textContent = on ? '● Live' : 'Disconnected';
+  statusEl.className = on ? 'on' : 'off';
+}
+
+function getToken() {
+  token = prompt('Paste your access token (get it by logging in on the desktop dashboard):') || null;
+  if (!token) log('No token provided — continuing anonymously.');
+}
+
+async function login() {
+  const msg = document.getElementById('loginMsg');
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  msg.textContent = 'Signing in…';
+  try {
+    const resp = await fetch(location.origin + '/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user, password: pass }),
+    });
+    if (!resp.ok) throw new Error('Invalid credentials (' + resp.status + ')');
+    const data = await resp.json();
+    token = data.access_token;
+    document.getElementById('loginBox').style.display = 'none';
+    log('Signed in as ' + (data.user && data.user.username ? data.user.username : user) + '.');
+  } catch (e) {
+    msg.textContent = e.message;
+  }
+}
+
+function isSecure() {
+  return window.isSecureContext || location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname);
+}
+
+async function init() {
+  log('Requesting camera permission… (tap Allow in the browser prompt)');
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    log('Camera ready (permission granted).');
+    permBtn.style.display = 'none';
+    startBtn.disabled = false;
+  } catch (e) {
+    if (!isSecure()) {
+      log('❌ Camera blocked: this page is NOT over HTTPS. Open https://' + location.host + '/mobile (browsers only allow camera on secure connections).');
+    } else if (e && e.name === 'NotAllowedError') {
+      log('❌ Permission denied in the browser. Unlock the camera for this site (🔒 icon → Camera → Allow), then tap "Allow camera access" again.');
+    } else if (e && e.name === 'NotFoundError') {
+      log('❌ No camera found on this device.');
+    } else {
+      log('❌ Camera error: ' + (e && e.message ? e.message : e));
+    }
+    permBtn.textContent = '🔁 Retry camera permission';
+  }
+}
+
+document.getElementById('loginBtn').onclick = (e) => { e.preventDefault(); login(); };
+document.getElementById('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+permBtn.onclick = init;
+
+startBtn.onclick = () => {
+  if (!token) { login(); alert('Please sign in first.'); return; }
+  if (!stream) { alert('Camera not available — tap "Allow camera access" first.'); return; }
+  if (ws && ws.readyState === WebSocket.OPEN) return;
+  ws = new WebSocket(WS_URL + '?token=' + encodeURIComponent(token));
+  ws.onopen = () => {
+    log('WebSocket connected.');
+    ws.send(JSON.stringify({ type: 'start_inspection', mode: 'continuous' }));
+    running = true;
+    startBtn.disabled = true;
+    stopBtn.style.display = 'block';
+    setStatus(true);
+    sendLoop();
+  };
+  ws.onmessage = (ev) => {
+    try {
+      const msg = JSON.parse(ev.data);
+      if (msg.type === 'ready') log('Inspection started: #' + msg.inspection_id);
+      else if (msg.type === 'result') {
+        adaptInterval(performance.now() - lastSend);
+        inFlight = false;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const img = new Image();
+        img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
+        img.src = 'data:image/jpeg;base64,' + msg.jpeg_base64;
+        const d = msg.data;
+        updatePerfUI(d.perf);
+        document.getElementById('sRisk').textContent = Math.round(d.risk_score);
+        document.getElementById('sComps').textContent = d.component_count;
+        document.getElementById('sTemp').textContent = d.thermal_stats ? d.thermal_stats.max_temp + '°' : '—';
+        // Honest thermal labeling: simulated readings always show a DEMO badge.
+        const tb = document.getElementById('thermalBadge');
+        if (d.thermal_simulated) {
+          tb.textContent = 'DEMO / SIMULATED THERMAL — no real sensor connected';
+          tb.className = 'thermal-badge show demo';
+        } else if (d.thermal_available) {
+          tb.textContent = 'THERMAL SENSOR LIVE' + (d.thermal_source ? ' · ' + d.thermal_source : '');
+          tb.className = 'thermal-badge show live';
+        } else {
+          tb.textContent = '';
+          tb.className = 'thermal-badge';
+        }
+        const hv = d.heat_verification;
+        const heatBox = document.getElementById('heatBox');
+        if (hv && Object.keys(hv).length) {
+          const first = Object.values(hv)[0];
+          const pct = Math.round(first.confirmed_frames / Math.max(1, first.required) * 100);
+          document.getElementById('heatText').textContent =
+            '🔥 ' + (first.component || 'CIRCUIT').replace(/_/g, ' ').toUpperCase() +
+            ' — verifying heat ' + first.confirmed_frames + '/' + first.required + ' frames';
+          document.getElementById('heatBar').style.width = pct + '%';
+          heatBox.classList.add('show');
+        } else {
+          heatBox.classList.remove('show');
+        }
+      } else if (msg.type === 'alarm') {
+        alarmBox.classList.add('show');
+        alarmBox.querySelector('p').textContent = msg.message;
+        log('🚨 ' + msg.message);
+        playBeep();
+      } else if (msg.type === 'error') log('Server: ' + msg.message);
+    } catch (e) { /* ignore */ }
+  };
+  ws.onclose = () => { running = false; setStatus(false); log('Disconnected.'); startBtn.disabled = false; stopBtn.style.display = 'none'; };
+  ws.onerror = () => log('WebSocket error.');
+};
+
+stopBtn.onclick = () => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'stop_inspection' }));
+    ws.close();
+  }
+  running = false;
+  setStatus(false);
+  startBtn.disabled = false;
+  stopBtn.style.display = 'none';
+};
+
+function sendLoop() {
+  if (!running) return;
+  const now = performance.now();
+  // Watchdog: if the server never answered (lost frame / error path), release
+  // the backpressure so streaming cannot stall forever.
+  if (inFlight && now - lastSend > 2000) {
+    inFlight = false;
+    sendInterval = Math.min(MAX_INTERVAL, sendInterval * 1.3);
+  }
+  // Backpressure: never pile up frames; only send when the previous result
+  // has arrived and the adaptive interval has elapsed (up to 60fps).
+  if (!inFlight && now - lastSend >= sendInterval) {
+    lastSend = now;
+    inFlight = true;
+    const baseW = video.videoWidth || 1280;
+    const baseH = video.videoHeight || 720;
+    canvas.width = Math.round(baseW * streamScale);
+    canvas.height = Math.round(baseH * streamScale);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.72).split(',')[1];
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'frame', jpeg_base64: dataUrl }));
+  }
+  requestAnimationFrame(sendLoop);
+}
+
+function playBeep() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.8);
+  } catch (e) { /* ignore */ }
+}
+
+log('Camera is OFF. Tap "📷 Allow camera access" to ask for permission.');
+</script>
+</body>
+</html>

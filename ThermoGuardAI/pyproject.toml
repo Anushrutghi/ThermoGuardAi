@@ -1,0 +1,22 @@
+[project]
+name = "thermoguard-ai"
+version = "0.1.0"
+description = "Real-time intelligent electrical panel inspection, fault detection & predictive maintenance platform"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "B027"]  # B027: empty hook methods in ABCs are intentional
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI idiom: Depends()/File()/Form() as default argument values
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Form", "fastapi.Query", "fastapi.Body", "fastapi.Header", "fastapi.Cookie"]

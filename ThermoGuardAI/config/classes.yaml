@@ -1,0 +1,28 @@
+# ThermoGuard AI — Supported component classes (YOLO training order)
+# Used by training/dataset_gen.py and ai/detector/base.py
+classes:
+  - circuit_breaker
+  - fuse
+  - relay
+  - contactor
+  - busbar
+  - terminal
+  - cable
+  - mccb
+  - mcb
+  - rccb
+  - transformer
+  - motor_starter
+  - disconnect_switch
+  - power_supply
+  - indicator_light
+  - panel_door
+  - warning_label
+
+# Thermal severity limits (delta above ambient, °C): [warning, high, critical]
+thermal_limits:
+  default: [10, 20, 30]
+  terminal: [8, 15, 25]
+  cable: [8, 15, 25]
+  transformer: [15, 30, 45]
+  power_supply: [15, 30, 40]

@@ -1,0 +1,26 @@
+# ThermoGuard AI — Runtime settings reference.
+# Actual values are loaded from environment variables / .env (see .env.example).
+app:
+  name: ThermoGuard AI
+  env: development
+  debug: true
+
+detection:
+  mode: auto            # auto | yolo | fallback
+  confidence: 0.35
+  nms: 0.45
+  device: auto          # auto | cpu | cuda | mps
+
+thermal:
+  mode: auto            # auto | simulator | mlx90640 | lepton | amg8833 | seek
+  ambient_c: 25.0
+  simulate_hotspot: true
+
+alarms:
+  sound: assets/sounds/alarm.wav
+  email_enabled: false
+
+performance:
+  target_fps: 15
+  frame_buffer: 15
+  jpeg_quality: 82

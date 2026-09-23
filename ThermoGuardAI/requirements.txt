@@ -1,0 +1,38 @@
+# ===== ThermoGuard AI — Core runtime dependencies =====
+# Heavy ML deps (PyTorch / Ultralytics / ONNX) live in requirements-ai.txt
+# so the core platform installs and tests quickly without a GPU stack.
+
+# --- Web framework ---
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.9
+websockets>=12.0
+python-dotenv>=1.0.1
+
+# --- Data / validation ---
+pydantic>=2.8.0
+pydantic-settings>=2.4.0
+SQLAlchemy>=2.0.30
+numpy>=1.26.0
+pandas>=2.2.0
+psycopg[binary]>=3.2.0  # PostgreSQL driver (optional; unused for SQLite)
+
+# --- Auth ---
+PyJWT>=2.9.0
+bcrypt>=4.2.0
+email-validator>=2.1.0  # required by pydantic EmailStr
+
+# --- Computer vision ---
+opencv-python>=4.10.0
+Pillow>=10.4.0
+scikit-learn>=1.5.0
+
+# --- Dashboard (Streamlit initial version) ---
+streamlit>=1.38.0
+plotly>=5.24.0
+matplotlib>=3.9.0
+
+# --- Reporting ---
+reportlab>=4.2.0
+qrcode[pil]>=7.4.2
+firebase-admin>=6.0

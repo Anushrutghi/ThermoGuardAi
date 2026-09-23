@@ -1,0 +1,21 @@
+rules_version = '2';
+// ============================================================
+// ThermoGuard AI — Firebase Storage security rules
+//
+// Report PDFs (and any future evidence) are stored under controlled
+// paths and served ONLY through the authenticated, organization-authorized
+// backend endpoint GET /api/v1/reports/{id}/download. The backend uses the
+// Firebase Admin SDK, which bypasses these rules.
+//
+// The React frontend never accesses Storage directly (no public or signed
+// URLs are ever issued), so all direct client access is DENIED. Users cannot
+// download another organization's reports, upload arbitrary files, overwrite
+// protected reports, or read private inspection evidence through the client.
+// ============================================================
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

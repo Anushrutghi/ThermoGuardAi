@@ -1,0 +1,65 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+.venv-ai/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Environment ---
+.env
+*.env.local
+
+# --- Secrets (S6 Firebase) ---
+# Firebase service-account private keys must NEVER be committed.
+secrets/
+*.firebase-service-account.json
+firebase-debug.log
+# Streamlit secrets (API keys / credentials). config.toml is safe to commit.
+.streamlit/secrets.toml
+
+# --- Runtime data ---
+database/*.db
+database/*.sqlite3
+database/*.sqlite
+database/*.db-wal
+database/*.db-shm
+database/*.db-journal
+logs/*.log
+logs/*.log.*
+reports/generated/
+media/
+uploads/
+*.log
+
+# --- Models & datasets ---
+models/*.pt
+models/*.onnx
+models/*.tflite
+# Root-level downloaded/pretrained weights (e.g. yolo11n.pt)
+/*.pt
+/*.onnx
+datasets/generated/
+datasets/synthetic/runs/
+
+# --- Frontend ---
+node_modules/
+frontend/react/dist/
+frontend/react/.vite/
+frontend/react/package-lock.json
+*.tsbuildinfo
+
+# --- Local tooling (machine-specific; never committed) ---
+# Claude Code / agent tooling. The skill dirs here are symlinks into .venv/,
+# so they would dangle on any other machine.
+.claude/
+.agents/
+
+# --- OS ---
+.DS_Store
+Thumbs.db

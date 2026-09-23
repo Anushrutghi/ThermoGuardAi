@@ -1,0 +1,15 @@
+# ===== ThermoGuard AI — Optional AI acceleration stack =====
+# Installed separately (see scripts/setup.sh). The platform runs with the
+# built-in CV fallback detector without these; training and YOLO inference
+# require them.
+#
+# NOTE: PyTorch dropped Intel-Mac (macosx_x86_64) wheels after 2.2, and those
+# wheels need Python <= 3.11. On Intel Macs use Python 3.11 (see Makefile
+# setup-ai / scripts/setup.sh --full). NVIDIA (CUDA) and Apple Silicon (MPS)
+# get the latest torch automatically.
+ultralytics>=8.3.0
+torch>=2.2.0
+onnxruntime>=1.18.0
+# torch <=2.2 was built against numpy 1.x — pin numpy<2 to avoid the
+# "Numpy is not available" RuntimeError (safe for all torch versions)
+numpy<2

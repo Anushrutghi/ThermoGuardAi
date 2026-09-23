@@ -1,0 +1,40 @@
+# Secrets — never shipped in an image
+secrets/
+*.firebase-service-account.json
+.env
+*.env.local
+.env.*.local
+
+# Local databases (dev/test only — never production, never images)
+database/*.db
+database/*.sqlite*
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Frontend build artifacts
+frontend/react/node_modules/
+frontend/react/dist/
+frontend/react/.vite/
+
+# Runtime files
+logs/
+media/
+reports/generated/
+uploads/
+models/*.pt
+models/*.onnx
+datasets/generated/
+
+# Git / OS
+.git/
+.DS_Store

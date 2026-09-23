@@ -1,0 +1,630 @@
+{
+  "$defs": {
+    "AnnotationBoundingBox": {
+      "additionalProperties": false,
+      "description": "Normalized bounding box coordinates [x_min, y_min, x_max, y_max] in range [0.0, 1.0].",
+      "properties": {
+        "x_min": {
+          "description": "Normalized left coordinate (0.0 to 1.0).",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "X Min",
+          "type": "number"
+        },
+        "y_min": {
+          "description": "Normalized top coordinate (0.0 to 1.0).",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Y Min",
+          "type": "number"
+        },
+        "x_max": {
+          "description": "Normalized right coordinate (0.0 to 1.0).",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "X Max",
+          "type": "number"
+        },
+        "y_max": {
+          "description": "Normalized bottom coordinate (0.0 to 1.0).",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Y Max",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x_min",
+        "y_min",
+        "x_max",
+        "y_max"
+      ],
+      "title": "AnnotationBoundingBox",
+      "type": "object"
+    },
+    "AnnotationStatus": {
+      "description": "Annotation completeness.",
+      "enum": [
+        "UNANNOTATED",
+        "ANNOTATED",
+        "VERIFIED"
+      ],
+      "title": "AnnotationStatus",
+      "type": "string"
+    },
+    "ComponentAnnotation": {
+      "additionalProperties": false,
+      "description": "A detected electrical component instance with bounding box and visible faults.",
+      "properties": {
+        "component_class": {
+          "$ref": "#/$defs/ComponentClass",
+          "description": "Canonical component category."
+        },
+        "bbox": {
+          "$ref": "#/$defs/AnnotationBoundingBox",
+          "description": "Component bounding box (0.0 to 1.0)."
+        },
+        "component_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stable panel circuit code, e.g. 'B1', 'R2'.",
+          "title": "Component Id"
+        },
+        "is_healthy": {
+          "default": true,
+          "description": "True if component is free of visible defects.",
+          "title": "Is Healthy",
+          "type": "boolean"
+        },
+        "visible_faults": {
+          "description": "List of verifiable visual anomalies on this component (multi-label).",
+          "items": {
+            "$ref": "#/$defs/VisibleFaultAnnotation"
+          },
+          "title": "Visible Faults",
+          "type": "array"
+        },
+        "occluded": {
+          "default": false,
+          "description": "True if component is partially occluded by wiring/barrier.",
+          "title": "Occluded",
+          "type": "boolean"
+        },
+        "truncated": {
+          "default": false,
+          "description": "True if component extends outside the frame border.",
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "component_class",
+        "bbox"
+      ],
+      "title": "ComponentAnnotation",
+      "type": "object"
+    },
+    "ComponentClass": {
+      "description": "Supported electrical component classes for object detection.",
+      "enum": [
+        "circuit_breaker",
+        "mcb",
+        "mccb",
+        "rccb",
+        "fuse",
+        "relay",
+        "contactor",
+        "busbar",
+        "terminal",
+        "cable",
+        "transformer",
+        "motor_starter",
+        "disconnect_switch",
+        "power_supply",
+        "indicator_light",
+        "panel_door",
+        "warning_label"
+      ],
+      "title": "ComponentClass",
+      "type": "string"
+    },
+    "HardNegativeAnnotation": {
+      "additionalProperties": false,
+      "description": "An annotated benign region that mimics a fault to train the model to reject false alarms.",
+      "properties": {
+        "negative_type": {
+          "$ref": "#/$defs/HardNegativeType",
+          "description": "Type of benign visual artifact."
+        },
+        "bbox": {
+          "$ref": "#/$defs/AnnotationBoundingBox",
+          "description": "Bounding box of the hard negative region."
+        },
+        "mimicked_fault": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisibleFaultClass"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Visible fault that this artifact commonly mimics (e.g. scorching_charring)."
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Explanation why this is a benign negative.",
+          "title": "Notes"
+        }
+      },
+      "required": [
+        "negative_type",
+        "bbox"
+      ],
+      "title": "HardNegativeAnnotation",
+      "type": "object"
+    },
+    "HardNegativeType": {
+      "description": "Visual patterns that mimic electrical faults but represent nominal/safe conditions.",
+      "enum": [
+        "manufacturing_marking",
+        "shadow_or_ambient_darkening",
+        "protective_coating",
+        "reflection_glare",
+        "non_electrical_hardware"
+      ],
+      "title": "HardNegativeType",
+      "type": "string"
+    },
+    "ImageMetadata": {
+      "additionalProperties": false,
+      "description": "Capture context, provenance, and data rights for a dataset sample.",
+      "properties": {
+        "site_id": {
+          "description": "Facility or site identifier (e.g. 'FAC-DENVER-01').",
+          "title": "Site Id",
+          "type": "string"
+        },
+        "panel_id": {
+          "description": "Physical electrical panel identifier (e.g. 'PNL-MCC-04').",
+          "title": "Panel Id",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Inspection recording session identifier.",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "camera_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Camera sensor hardware model.",
+          "title": "Camera Model"
+        },
+        "timestamp": {
+          "description": "Capture timestamp (UTC).",
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "data_rights": {
+          "default": "internal_inspection",
+          "description": "Licensing or data rights policy (e.g. 'internal_inspection', 'open_dataset', 'customer_cleared').",
+          "title": "Data Rights",
+          "type": "string"
+        },
+        "is_synthetic": {
+          "default": false,
+          "description": "True if synthetically generated / demo fixture.",
+          "title": "Is Synthetic",
+          "type": "boolean"
+        },
+        "synthetic_notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Notes if synthetic fixture.",
+          "title": "Synthetic Notes"
+        },
+        "environmental_conditions": {
+          "additionalProperties": true,
+          "description": "Environmental metadata (e.g. lux, temperature_ambient_c, humidity_pct).",
+          "title": "Environmental Conditions",
+          "type": "object"
+        }
+      },
+      "required": [
+        "site_id",
+        "panel_id",
+        "session_id",
+        "timestamp"
+      ],
+      "title": "ImageMetadata",
+      "type": "object"
+    },
+    "ImageQualityFlag": {
+      "description": "Optical image quality assessment.",
+      "enum": [
+        "ok",
+        "dark",
+        "blurry",
+        "glare",
+        "occluded"
+      ],
+      "title": "ImageQualityFlag",
+      "type": "string"
+    },
+    "ReviewStatus": {
+      "description": "Review and curation lifecycle status.",
+      "enum": [
+        "PENDING_REVIEW",
+        "IN_REVIEW",
+        "APPROVED",
+        "REJECTED",
+        "QUARANTINED"
+      ],
+      "title": "ReviewStatus",
+      "type": "string"
+    },
+    "SampleRecord": {
+      "additionalProperties": false,
+      "description": "Full metadata and annotation record for a single image sample in the dataset.",
+      "properties": {
+        "sample_id": {
+          "description": "Unique content-addressable hash (SHA-256) or UUID.",
+          "title": "Sample Id",
+          "type": "string"
+        },
+        "file_path": {
+          "description": "Relative or absolute path to the preserved original image.",
+          "title": "File Path",
+          "type": "string"
+        },
+        "thumbnail_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Relative path to derived thumbnail image.",
+          "title": "Thumbnail Path"
+        },
+        "sha256": {
+          "description": "Cryptographic SHA-256 checksum of original file.",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "dhash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "64-bit perceptual difference hash for near-duplicate detection.",
+          "title": "Dhash"
+        },
+        "width": {
+          "description": "Image pixel width.",
+          "minimum": 320,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "description": "Image pixel height.",
+          "minimum": 320,
+          "title": "Height",
+          "type": "integer"
+        },
+        "metadata": {
+          "$ref": "#/$defs/ImageMetadata",
+          "description": "Provenance, site, panel, session, and rights metadata."
+        },
+        "split": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SplitAssignment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Assigned split (train, val, test)."
+        },
+        "quality": {
+          "$ref": "#/$defs/ImageQualityFlag",
+          "default": "ok",
+          "description": "Image quality rating."
+        },
+        "components": {
+          "description": "Annotated components.",
+          "items": {
+            "$ref": "#/$defs/ComponentAnnotation"
+          },
+          "title": "Components",
+          "type": "array"
+        },
+        "hard_negatives": {
+          "description": "Annotated hard negative regions.",
+          "items": {
+            "$ref": "#/$defs/HardNegativeAnnotation"
+          },
+          "title": "Hard Negatives",
+          "type": "array"
+        },
+        "review_status": {
+          "$ref": "#/$defs/ReviewStatus",
+          "default": "PENDING_REVIEW",
+          "description": "Curation review status (PENDING_REVIEW, APPROVED, REJECTED, QUARANTINED)."
+        },
+        "annotation_status": {
+          "$ref": "#/$defs/AnnotationStatus",
+          "default": "UNANNOTATED",
+          "description": "Annotation progress."
+        },
+        "reviewer_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Identifier of human reviewer.",
+          "title": "Reviewer Id"
+        },
+        "reviewed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Timestamp of human review.",
+          "title": "Reviewed At"
+        },
+        "review_notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reviewer feedback or notes.",
+          "title": "Review Notes"
+        },
+        "duplicate_of": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of exact duplicate if detected.",
+          "title": "Duplicate Of"
+        },
+        "near_duplicates": {
+          "description": "List of near-duplicate matches with Hamming distance scores.",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Near Duplicates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "sample_id",
+        "file_path",
+        "sha256",
+        "width",
+        "height",
+        "metadata"
+      ],
+      "title": "SampleRecord",
+      "type": "object"
+    },
+    "SplitAssignment": {
+      "description": "Dataset partition.",
+      "enum": [
+        "train",
+        "val",
+        "test"
+      ],
+      "title": "SplitAssignment",
+      "type": "string"
+    },
+    "VerificationSource": {
+      "description": "Source of verification for fault ground truth.",
+      "enum": [
+        "visual_expert_review",
+        "calibrated_torque_test",
+        "micro_ohmmeter_test",
+        "thermal_rise_under_load",
+        "physical_disassembly",
+        "unverified"
+      ],
+      "title": "VerificationSource",
+      "type": "string"
+    },
+    "VisibleFaultAnnotation": {
+      "additionalProperties": false,
+      "description": "Verifiable visible optical anomaly associated with a component.",
+      "properties": {
+        "fault_class": {
+          "$ref": "#/$defs/VisibleFaultClass",
+          "description": "Visible anomaly class."
+        },
+        "severity": {
+          "default": "WARNING",
+          "description": "Estimated risk: MONITORING, WARNING, CRITICAL.",
+          "title": "Severity",
+          "type": "string"
+        },
+        "bbox": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnnotationBoundingBox"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional localized bounding box of anomaly within the component (0.0 to 1.0)."
+        },
+        "confidence": {
+          "default": 1.0,
+          "description": "Reviewer confidence in this finding.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "verification_source": {
+          "$ref": "#/$defs/VerificationSource",
+          "default": "visual_expert_review",
+          "description": "Source of verification for this label."
+        },
+        "verification_notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Detailed verification report or measurement notes (mandatory for verified_loose_connection).",
+          "title": "Verification Notes"
+        }
+      },
+      "required": [
+        "fault_class"
+      ],
+      "title": "VisibleFaultAnnotation",
+      "type": "object"
+    },
+    "VisibleFaultClass": {
+      "description": "Visible optical anomalies observable in RGB inspection images.\n\nThese are physical visual findings, NOT diagnostic fault hypotheses.",
+      "enum": [
+        "thermal_discoloration",
+        "scorching_charring",
+        "arc_damage_pitting",
+        "surface_corrosion_oxidation",
+        "exposed_uninsulated_conductor",
+        "physical_casing_damage",
+        "missing_deadfront_cover",
+        "mechanical_misalignment",
+        "foreign_object_debris",
+        "moisture_liquid_ingress",
+        "verified_loose_connection"
+      ],
+      "title": "VisibleFaultClass",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Root dataset manifest specification enforcing grouped splits and schema compliance.",
+  "properties": {
+    "manifest_version": {
+      "default": "1.0.0",
+      "description": "Semver version of this dataset specification.",
+      "title": "Manifest Version",
+      "type": "string"
+    },
+    "name": {
+      "description": "Dataset or export name.",
+      "title": "Name",
+      "type": "string"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Dataset description and scope.",
+      "title": "Description"
+    },
+    "created_at": {
+      "description": "Creation timestamp.",
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "updated_at": {
+      "description": "Last updated timestamp.",
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    },
+    "samples": {
+      "description": "List of sample records.",
+      "items": {
+        "$ref": "#/$defs/SampleRecord"
+      },
+      "title": "Samples",
+      "type": "array"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "title": "DatasetManifest",
+  "type": "object"
+}
